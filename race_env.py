@@ -81,7 +81,6 @@ class GridWorldEnv(gym.Env):
         for i, (x, y) in enumerate(cords):
             next_vert = cords[(i + 1) % 4]
             borders.append(Border(x, y, next_vert[0], next_vert[1]))
-        
     
     def is_colided(self):
         car_borders = self._get_car_borders()
