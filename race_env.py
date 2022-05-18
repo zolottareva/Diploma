@@ -4,8 +4,28 @@ import numpy as np
 from typing import Optional
 
 class Border:
-    def __init__(self, x1, y1, x2, y2) -> None:
+    def __init__(self, x1, y1, x2, y2):
         self.line = np.array([x1, y1, x2, y2])
+    
+    def is_crossing(self, border):
+        k_self, b_self = self.count_k_b()
+        k_border, b_border = border.count_k_b()
+        if k_self == k_border:
+            return False # parallel
+        x_crossing = (b_self - b_border)/(b_border - b_self)
+        y_crossing = k_self * x_crossing + b_self
+        return self.check_if_inside(x_crossing, y_crossing)
+        
+    def count_k_b(self):
+        k = (self.line[3] - self.line[1])/(self.line[2]-self.line[0]) # (y2-y1)/(x2-x1)
+        b = self.line[1] - k * self.line[0] # y1 - k * x1
+        return (k, b)
+
+    def _check_if_inside(self, x, y):
+        if self.line[0] != self.line[2]:
+            return x >= min(self.line[0], self.line[2]) and x <= max(self.line[0], self.line[2])
+        return y >= min(self.line[1], self.line[3]) and y <= max(self.line[1], self.line[3])
+    
 
 class GridWorldEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
@@ -46,14 +66,36 @@ class GridWorldEnv(gym.Env):
     def _get_obs(self):
         # TODO: measure how far the obstacles are
         return {"vision": []}
+
+    def _get_car_cords(self):
+        return np.array([
+                [self.car_position[0] - self.car_size[0]/2, self.car_position[1] + self.car_size[1]/2], # top left
+                [self.car_position[0] + self.car_size[0]/2, self.car_position[1] + self.car_size[1]/2], # top right
+                [self.car_position[0] + self.car_size[0]/2, self.car_position[1] - self.car_size[1]/2], # bottom right
+                [self.car_position[0] - self.car_size[0]/2, self.car_position[1] - self.car_size[1]/2]  # bottom left
+        ])
+    
+    def _get_car_borders(self):
+        cords = self._get_car_cords()
+        borders = []
+        for i, (x, y) in enumerate(cords):
+            next_vert = cords[(i + 1) % 4]
+            borders.append(Border(x, y, next_vert[0], next_vert[1]))
+        
     
     def is_colided(self):
-        # TODO: check for collision    
-        ...
-    
+        car_borders = self._get_car_borders()
+        for b in self.borders:
+            for c_b in car_borders:
+                if b.is_crossing(c_b):
+                    return True
+        return False
+            
     def is_finished(self):
-        # TODO: check if car has crossed finish line
-        ...
+        for b in self.borders:
+            if b.is_crossing(self.finish_line):
+                return True
+        return False
     
     def step(self, action):
         self.direction += action
