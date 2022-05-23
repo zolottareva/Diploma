@@ -71,7 +71,6 @@ class RaceEnv(gym.Env):
         self.ray_max_distance = 100
         self.vision_range = [-90, 90]
         self.frames_count = 0
-        self.vision_angle = sum(abs(v) for v in self.vision_range)
         self.borders = [
             Border(car_x, car_y + 30, car_x + 1000, car_y + 30),
             Border(car_x, car_y - 30, car_x + 1000, car_y - 30),
@@ -81,7 +80,7 @@ class RaceEnv(gym.Env):
 
         self.observation_space = spaces.Dict(
             {
-                "vision": spaces.Box(0, 1, shape=(5,), dtype=float)
+                "vision": spaces.Box(0, 1, shape=(self.rays_count,), dtype=float)
             }
         )
 
@@ -122,7 +121,7 @@ class RaceEnv(gym.Env):
     
     def _update_rays(self):
         self.rays.clear()
-        for angle in np.linspace(*self.vision_range, self.rays_count):
+        for angle in np.linspace(*self.vision_range, self.rays_count, endpoint=True):
             global_angle = self.direction + angle
             ray = Border.from_point_angle(self.car_position, global_angle, self.ray_max_distance)
             self.rays.append(ray)
@@ -132,7 +131,7 @@ class RaceEnv(gym.Env):
         borders = []
         for i, (x, y) in enumerate(cords):
             next_vert = cords[(i + 1) % 4]
-            borders.append(Border(x, y, next_vert[0], next_vert[1]))
+            borders.append(Border(x, y, *next_vert))
         return borders
     
     def is_collided(self):
@@ -144,11 +143,7 @@ class RaceEnv(gym.Env):
         return False
             
     def is_finished(self):
-        car_borders = self._get_car_borders()
-        for b in car_borders:
-            if b.is_crossing(self.finish_line):
-                return True
-        return False
+        return any(b.is_crossing(self.finish_line) for b in self._get_car_borders())
     
     def step(self, action):
         self.direction += action[0]
