@@ -26,9 +26,6 @@ class Border:
         elif k_border == float('inf'):
             x_crossing = other.line[0]
             y_crossing = k_self * x_crossing + b_self
-        elif b_border == b_self:
-            x_crossing = 0
-            y_crossing = b_self
         else:
             x_crossing = (b_self - b_border) / (k_border - k_self)
             y_crossing = k_self * x_crossing + b_self
