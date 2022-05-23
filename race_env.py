@@ -1,8 +1,6 @@
 import gym.utils
 from gym import spaces
 import numpy as np
-from typing import Optional
-import matplotlib.pyplot as plt
 from collections import deque
 import cv2
 
