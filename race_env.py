@@ -62,21 +62,23 @@ class RaceEnv(gym.Env):
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
         car_x, car_y = self.car_position = np.array([0, 0], float)
-        self.finish_line = Border(car_x + 1000, car_y + 30, car_x + 1000, car_y - 30)
+        self.finish_line = Border(car_x + 1500, car_y + 300, car_x + 1420, car_y + 300)
         self.car_size = np.array([10, 10])
         self.position_history = deque(maxlen=25)
         self.velocity = 10 # V
         self.direction = 0 # Theta
-        self.rays_count = 5
-        self.ray_max_distance = 100
-        self.vision_range = [-90, 90]
+        self.rays_count = 25
+        self.ray_max_distance = 450
+        self.vision_range = [-45, 45]
         self.frames_count = 0
         self.borders = [
             Border(car_x, car_y + 30, car_x + 1000, car_y + 30),
             Border(car_x, car_y - 30, car_x + 1000, car_y - 30),
+            Border(car_x + 1000, car_y - 30, car_x + 1500, car_y + 300),
+            Border(car_x + 1000, car_y + 30, car_x + 1420, car_y + 300)
         ]
         self.rays = []
-        self.window_size = 512  # The size of the PyGame window
+        self.window_size = 1024  # The size of the PyGame window
 
         self.observation_space = spaces.Dict(
             {
@@ -216,7 +218,7 @@ class RaceEnv(gym.Env):
         for b, intense in zip(self.rays, obs['vision']):
             pygame.draw.line(
                 canvas,
-                np.array([255, 100,50]) * intense,
+                np.array([255, 100, 50]) * intense,
                 *(b.points() - window_center),
                 width=3,
             )

@@ -14,18 +14,8 @@ def run_human_evaluation():
     done = False
     obs = env.reset()
     while not done:
-        action = trainer.compute_action(obs)
+        action = trainer.compute_single_action(obs)
         obs, reward, done, info = env.step(action)
         episode_reward += reward
+trainer.restore('checkpoints/checkpoint_000100/checkpoint-100')
 run_human_evaluation()
-for i in range(100):
-    print(i, trainer.train()['episode_reward_mean'])
-    path = trainer.save(f'checkpoints/')
-    print(path)
-    if i % 10 == 0:
-        # run_human_evaluation()
-        path = trainer.save()
-        print(path)
-input('Ready?')
-run_human_evaluation()
-
