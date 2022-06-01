@@ -3,6 +3,8 @@ from race_env import RaceEnv
 
 config = {
     "framework": "torch",
+    
+    
     'env_config': {"render_mode": None}
 }
 
@@ -17,15 +19,12 @@ def run_human_evaluation():
         action = trainer.compute_action(obs)
         obs, reward, done, info = env.step(action)
         episode_reward += reward
-run_human_evaluation()
+
 for i in range(100):
     print(i, trainer.train()['episode_reward_mean'])
     path = trainer.save(f'checkpoints/')
-    print(path)
     if i % 10 == 0:
-        # run_human_evaluation()
-        path = trainer.save()
-        print(path)
+        run_human_evaluation()
 input('Ready?')
 run_human_evaluation()
 
