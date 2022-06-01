@@ -35,19 +35,19 @@ class RaceEnv(gym.Env):
         self.borders, self.finish_line = generate_track()
         self.rays = []
         self.window_size = 1024  # The size of the PyGame window
-        self.max_velosity_change = 1
-        self.min_velosity = 5
-        self.max_velosity = 100
+        self.max_velocity_change = 1
+        self.min_velocity = 5
+        self.max_velocity = 100
         self.observation_space = spaces.Dict(
             {
                 "vision": spaces.Box(0, 1, shape=(self.rays_count,), dtype=float),
-                "velosity": spaces.Box(self.min_velosity / self.max_velosity, 1, shape=(1,), dtype=float)
+                "velocity": spaces.Box(self.min_velocity / self.max_velocity, 1, shape=(1,), dtype=float)
             }
         )
         self.turn_limit = 1
         self.action_space = spaces.Dict({
             'angle_change': spaces.Box(low=-self.turn_limit, high=self.turn_limit, shape=[1], dtype=float),
-            'velosity_change': spaces.Box(low=-self.max_velosity_change, high=self.max_velosity_change, shape=[1], dtype=float),
+            'velocity_change': spaces.Box(low=-self.max_velocity_change, high=self.max_velocity_change, shape=[1], dtype=float),
         })
         self.window = None
         if render_mode == "human":
@@ -71,7 +71,7 @@ class RaceEnv(gym.Env):
 
     def _get_obs(self):
         vision = [self._get_ray_collision_distance(r) / self.ray_max_distance for r in self.rays]
-        return {'vision' : vision, 'velosity': [self.velocity / self.max_velosity]}
+        return {'vision' : vision, 'velocity': [self.velocity / self.max_velocity]}
     
     def _get_info(self):
         return {}
@@ -111,10 +111,10 @@ class RaceEnv(gym.Env):
         return any(b.is_crossing(self.finish_line) for b in self._get_car_borders())
     
     def step(self, action):
-        angle_change, velosity_change = action['angle_change'], action['velosity_change']
+        angle_change, velocity_change = action['angle_change'], action['velocity_change']
         self.steps_count += 1
         self.direction += angle_change[0]
-        self.velocity = np.clip(self.velocity + velosity_change[0], self.min_velosity, self.max_velosity)
+        self.velocity = np.clip(self.velocity + velocity_change[0], self.min_velocity, self.max_velocity)
         direction = np.deg2rad(self.direction)
         delta_x = self.velocity * np.cos(direction)
         delta_y = self.velocity * np.sin(direction)
