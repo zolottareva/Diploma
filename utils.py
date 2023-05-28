@@ -26,12 +26,16 @@ class Border:
             y_crossing = k_self * x_crossing + b_self
         return x_crossing, y_crossing
 
-    def is_crossing(self, border):
+    def is_crossing(self, border, return_point=False):
         point = self.get_crossing_point(border)
         if point is None:
-            return False
-        return self._check_if_inside(*point) and border._check_if_inside(*point)
-    
+            is_crossing = False
+        else:
+            is_crossing = self._check_if_inside(*point) and border._check_if_inside(*point)
+        if return_point:
+            return is_crossing, point
+        return is_crossing
+
     def points(self):
         return np.array([self.line[:2], self.line[2:]])
 

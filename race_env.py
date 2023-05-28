@@ -1,7 +1,7 @@
 from collections import deque
 
-import gym.utils
-from gym import spaces
+import gymnasium as gym 
+from gymnasium import spaces
 import numpy as np
 import cv2
 
@@ -9,7 +9,7 @@ from track_generator import generate_track
 from utils import Border
 
 class RaceEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
 
     def __init__(self, config=None):
         config = config or {}
@@ -19,11 +19,11 @@ class RaceEnv(gym.Env):
         car_x, car_y = self.car_position = np.array([0, 0], float)
         self.car_size = np.array([10, 10])
         self.position_history = deque(maxlen=25)
-        self.velocity = 10 # V
+        self.velocity = 1 # V
         self.direction = 0 # Theta
         self.rays_count = 25
-        self.ray_max_distance = 450
-        self.vision_range = [-45, 45]
+        self.ray_max_distance = 200
+        self.vision_range = [-90, 90]
         self.frames_count = 0
         self.steps_count = 0
         # self.borders = [
@@ -32,16 +32,20 @@ class RaceEnv(gym.Env):
         #     Border(car_x + 1000, car_y - 30, car_x + 1500, car_y + 300),
         #     Border(car_x + 1000, car_y + 30, car_x + 1420, car_y + 300)
         # ]
-        self.borders, self.finish_line = generate_track()
+        self.max_episode_steps = 1000
+        self.borders, self.finish_line, self.turns = generate_track(turns=config.get('turns_count', 10))
         self.rays = []
         self.window_size = 1024  # The size of the PyGame window
         self.max_velocity_change = 1
-        self.min_velocity = 5
+        self.min_velocity = 1
         self.max_velocity = 100
+        
+        
         self.observation_space = spaces.Dict(
             {
                 "vision": spaces.Box(0, 1, shape=(self.rays_count,), dtype=float),
-                "velocity": spaces.Box(self.min_velocity / self.max_velocity, 1, shape=(1,), dtype=float)
+                "velocity": spaces.Box(self.min_velocity / self.max_velocity, 1, shape=(1,), dtype=float),
+                "turn_angle": spaces.Box(-1, 1, shape=(2,), dtype=float)
             }
         )
         self.turn_limit = 1
@@ -50,6 +54,7 @@ class RaceEnv(gym.Env):
             'velocity_change': spaces.Box(low=-self.max_velocity_change, high=self.max_velocity_change, shape=[1], dtype=float),
         })
         self.window = None
+        self.cumulative_reward = 0
         if render_mode == "human":
             import pygame
             pygame.font.init()
@@ -69,9 +74,25 @@ class RaceEnv(gym.Env):
                     minimal = min(distance, minimal)
         return minimal
 
+    def _get_next_turn(self):
+        for turn in self.turns:
+            if turn[0] > self.car_position[0] - 20:
+                return turn
+        return 0, 0, 0
+
     def _get_obs(self):
-        vision = [self._get_ray_collision_distance(r) / self.ray_max_distance for r in self.rays]
-        return {'vision' : vision, 'velocity': [self.velocity / self.max_velocity]}
+        distances = np.array([self._get_ray_collision_distance(r) for r in self.rays])
+        vision = 1 - distances / self.ray_max_distance
+        kernel = np.array([1, 2, 1],)
+        vision = np.convolve(vision, kernel / kernel.sum(), 'same')
+        turn_angle = self._get_next_turn()[2]
+        turn_info = np.array([np.sin(turn_angle), np.cos(turn_angle)])
+        
+        return {
+            'vision' : vision, 
+            'velocity': np.array([self.velocity / self.max_velocity]), 
+            'turn_angle': turn_info
+        }
     
     def _get_info(self):
         return {}
@@ -108,7 +129,8 @@ class RaceEnv(gym.Env):
         return False
             
     def is_finished(self):
-        return any(b.is_crossing(self.finish_line) for b in self._get_car_borders())
+
+        return self.finish_line.is_crossing(Border(*self.car_position, *self.position_history[-1]))
     
     def step(self, action):
         angle_change, velocity_change = action['angle_change'], action['velocity_change']
@@ -119,25 +141,26 @@ class RaceEnv(gym.Env):
         delta_x = self.velocity * np.cos(direction)
         delta_y = self.velocity * np.sin(direction)
         
-        self.car_position += [delta_x, delta_y]
         self.position_history.append(self.car_position.copy())
+        self.car_position += [delta_x, delta_y]
 
         self._update_rays()
 
-        if self.is_collided() or self.steps_count > 1000:
-            reward = 0
+        if self.is_collided() or self.steps_count > self.max_episode_steps:
+            reward = -10
             done = True
         elif self.is_finished():
-            reward = 100 - self.steps_count
+            reward = (self.max_episode_steps - self.steps_count) / 10
             done = True
         else:
-            reward = 0.001
+            reward = self.velocity / 10
             done = False
         obs = self._get_obs()
         if self.render_mode is not None:
             self._render_frame(obs)
         
-        return obs, reward, done, self._get_info()
+        self.cumulative_reward += reward
+        return obs, reward, done, False, self._get_info()
         
     def close(self):
         if self.window is not None:
@@ -201,6 +224,18 @@ class RaceEnv(gym.Env):
         canvas.blit(text_surface, (0, 0))
         text_surface = self.font.render(f'{self.velocity:.1f}', False, (100, 0, 0))
         canvas.blit(text_surface, (100, 0))
+        text_surface = self.font.render(f'{self.cumulative_reward:.1f}', False, (100, 100, 0))
+        canvas.blit(text_surface, (200, 0))
+        
+        
+        for x, y, angle in self.turns:
+            text_surface = self.font.render(f'{angle / np.pi / 2 * 360:.1f}', False, (100, 100, 100))
+            canvas.blit(text_surface, (x - window_center[0], y - window_center[1]))
+        x, y, angle = self._get_next_turn()
+        text_surface = self.font.render(f'{angle / np.pi / 2 * 360:.1f}', False, (0, 200, 0))
+        canvas.blit(text_surface, (x - window_center[0], y - window_center[1]))
+        
+        
         if self.render_mode == "human":
             assert self.window is not None
             # The following line copies our drawings from `canvas` to the visible window
@@ -210,7 +245,7 @@ class RaceEnv(gym.Env):
 
             # We need to ensure that human-rendering occurs at the predefined framerate.
             # The following line will automatically add a delay to keep the framerate stable.
-            self.clock.tick(self.metadata["render_fps"])
+            self.clock.tick(self.metadata['render_fps'])
         else:  # rgb_array
             frame = np.transpose(
                 np.array(pygame.surfarray.pixels3d(canvas)), axes=(1, 0, 2)
@@ -219,14 +254,14 @@ class RaceEnv(gym.Env):
             self.frames_count += 1
 
 
-    def reset(self, seed=None, return_info=False, options=None):
+    def reset(self, *, seed=None, options=None):
         # Choose the agent's location uniformly at random
         self.direction = 0
         self.velocity = 10
         self.steps_count = 0
         self.car_position.fill(0)
         self.position_history.clear()
-        self.borders, self.finish_line = generate_track()
+        self.borders, self.finish_line, self.turns = generate_track()
         # clean the render collection and add the initial frame
         self._update_rays()
         observation = self._get_obs()
@@ -234,4 +269,4 @@ class RaceEnv(gym.Env):
             self._render_frame(observation)
 
         info = self._get_info()
-        return (observation, info) if return_info else observation
+        return observation, info
