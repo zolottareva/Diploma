@@ -16,7 +16,6 @@ class RaceEnv(gym.Env):
         render_mode = config.get('render_mode')
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
-        car_x, car_y = self.car_position = np.array([0, 0], float)
         self.car_size = np.array([10, 10])
         self.position_history = deque(maxlen=25)
         self.velocity = 1 # V
@@ -26,12 +25,6 @@ class RaceEnv(gym.Env):
         self.vision_range = [-90, 90]
         self.frames_count = 0
         self.steps_count = 0
-        # self.borders = [
-        #     Border(car_x, car_y + 30, car_x + 1000, car_y + 30),
-        #     Border(car_x, car_y - 30, car_x + 1000, car_y - 30),
-        #     Border(car_x + 1000, car_y - 30, car_x + 1500, car_y + 300),
-        #     Border(car_x + 1000, car_y + 30, car_x + 1420, car_y + 300)
-        # ]
         self.max_episode_steps = 1000
         self.borders, self.finish_line, self.turns = generate_track(turns=config.get('turns_count', 10))
         self.rays = []
@@ -39,7 +32,6 @@ class RaceEnv(gym.Env):
         self.max_velocity_change = 1
         self.min_velocity = 1
         self.max_velocity = 100
-        
         
         self.observation_space = spaces.Dict(
             {
@@ -99,10 +91,10 @@ class RaceEnv(gym.Env):
 
     def _get_car_cords(self):
         return np.array([
-                [self.car_position[0] - self.car_size[0]/2, self.car_position[1] + self.car_size[1]/2], # top left
-                [self.car_position[0] + self.car_size[0]/2, self.car_position[1] + self.car_size[1]/2], # top right
-                [self.car_position[0] + self.car_size[0]/2, self.car_position[1] - self.car_size[1]/2], # bottom right
-                [self.car_position[0] - self.car_size[0]/2, self.car_position[1] - self.car_size[1]/2]  # bottom left
+            [self.car_position[0] - self.car_size[0]/2, self.car_position[1] + self.car_size[1]/2], # top left
+            [self.car_position[0] + self.car_size[0]/2, self.car_position[1] + self.car_size[1]/2], # top right
+            [self.car_position[0] + self.car_size[0]/2, self.car_position[1] - self.car_size[1]/2], # bottom right
+            [self.car_position[0] - self.car_size[0]/2, self.car_position[1] - self.car_size[1]/2]  # bottom left
         ])
     
     def _update_rays(self):
@@ -129,7 +121,6 @@ class RaceEnv(gym.Env):
         return False
             
     def is_finished(self):
-
         return self.finish_line.is_crossing(Border(*self.car_position, *self.position_history[-1]))
     
     def step(self, action):
@@ -252,7 +243,6 @@ class RaceEnv(gym.Env):
             )
             cv2.imwrite(f"frames/{self.frames_count}.jpg", frame)
             self.frames_count += 1
-
 
     def reset(self, *, seed=None, options=None):
         # Choose the agent's location uniformly at random

@@ -1,4 +1,3 @@
-import gym
 from race_env import RaceEnv
 env = RaceEnv({'render_mode':"human"})
 

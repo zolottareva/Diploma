@@ -10,7 +10,7 @@ from track_generator import generate_track
 from utils import Border
 
 class MultiAgentRaceEnv(MultiAgentEnv):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 15}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 30}
     
     def __init__(self, config={}):
         super().__init__()
@@ -199,7 +199,6 @@ class MultiAgentRaceEnv(MultiAgentEnv):
         return False
             
     def is_finished(self, car_id):
-
         return self.finish_line.is_crossing(Border(*self.positions[car_id], *self.position_history[car_id][-1]))
     
     def make_action(self, action, car_id):

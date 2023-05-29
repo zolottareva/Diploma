@@ -2,8 +2,9 @@ from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.policy.policy import PolicySpec
 from race_env_multi import MultiAgentRaceEnv
 from ray.tune.registry import register_env
+
 car_numbers = 4
-env_config = {'turns_count': 5, 'cars_number': car_numbers, "render_mode": "human"}
+env_config = {'turns_count': 10, 'cars_number': car_numbers, "render_mode": "human"}
 
 load_env = lambda _: (MultiAgentRaceEnv(env_config))
 register_env(
@@ -20,11 +21,11 @@ trainer = (
     .environment('race_multi')
     .multi_agent(
         policies=policies,
-        policy_mapping_fn=lambda agent_id, *_, **__: '0'
+        policy_mapping_fn=lambda agent_id, *_, **__: agent_id
     )
     .build()
 )
-trainer.restore('checkpoints_with_competitors_multi_policy/checkpoint_000161')
+trainer.restore('checkpoints_with_competitors_multi_policy/checkpoint_000301')
 def run_human_evaluation():
     episode_reward = 0
     env = load_env(None)

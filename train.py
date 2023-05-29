@@ -1,11 +1,9 @@
 from ray.rllib.algorithms.ppo import PPOConfig
-from ray.rllib.algorithms.ddppo import DDPPOConfig
-from ray.rllib.algorithms import Algorithm
-from race_env import RaceEnv
-from gymnasium.wrappers import TimeLimit
 from ray.tune.registry import register_env
-
+from gymnasium.wrappers import TimeLimit
 import matplotlib.pyplot as plt
+
+from race_env import RaceEnv
 
 
 register_env(
@@ -23,17 +21,17 @@ trainer = (
     config
     .build()
 )
-if 1:
-    trainer.restore('checkpoints/checkpoint_003041')
+
+# trainer.restore('checkpoints/checkpoint_003041')
 def run_human_evaluation():
     env = RaceEnv({"render_mode": "human"})
 
     episode_reward = 0
     done = False
-    obs, info = env.reset()
+    obs, _ = env.reset()
     for _ in range(500):
         action = trainer.compute_single_action(obs, explore=False)
-        obs, reward, done, trunc, info = env.step(action)
+        obs, reward, done, _, _ = env.step(action)
         episode_reward += reward
         if done:
             break
@@ -44,7 +42,6 @@ for i in range(10000):
     reward_history.append(episode_reward)
     if i % 20 == 0:
         #run_human_evaluation()
-        path = trainer.save(f'checkpoints/')
+        path = trainer.save('checkpoints/')
         plt.plot(reward_history)
         plt.savefig('res.png')
-
